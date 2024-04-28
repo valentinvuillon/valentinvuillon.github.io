@@ -1,1 +1,1 @@
-Personal website [link](https://valentinvuillon.github.io/)
+Link to the website: [link](https://valentinvuillon.github.io/)
