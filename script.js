@@ -60,7 +60,7 @@ const yAxisGroup = svg.append("g")
 // Pause & Reset controls
 const pauseBtn = d3.select('#pauseBtn');
 const resetBtn = d3.select('#resetBtn');
-let paused = false;
+let paused = true; // Start paused
 let timeoutId;
 
 d3.csv("data.csv").then(raw => {
@@ -240,5 +240,5 @@ tickContainer.selectAll('div.tick')
 
     // Start
   let frameIndex = 0;
-  scheduleTick();
+  // scheduleTick(); // Animation starts paused; click Play to start
 });
