@@ -1,0 +1,8 @@
+code généré avec chatgpt  mini high
+
+https://chatgpt.com/c/6834a13e-f798-800a-9847-33204e1460d7
+
+Amélioraton du code 16. 
+
+-J'ai corrigé tic pour 2024 dans progress bar
+-j'ai corrigé position date pour ne pas que ça overlap avec bar chart
