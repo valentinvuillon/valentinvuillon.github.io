@@ -13,10 +13,32 @@ let speed = 1;
 // Speed control
 const speedSlider = d3.select('#speedSlider');
 const speedDisplay = d3.select('#speedValue');
-speedSlider.on('input', function() {
-  speed = +this.value;
-  speedDisplay.text(speed.toFixed(1) + '×');
-});
+const MIN_SPEED = 0.2;
+const MAX_SPEED = 80;
+const DEFAULT_SPEED = 1;
+
+// Configure slider input range for logarithmic control
+speedSlider
+  .attr('min', 0)
+  .attr('max', 1)
+  .attr('step', 0.001);
+
+// Compute normalized default position
+const DEFAULT_NORM = Math.log(DEFAULT_SPEED / MIN_SPEED) / Math.log(MAX_SPEED / MIN_SPEED);
+speedSlider.property('value', DEFAULT_NORM);
+
+// Function to update speed based on slider's log scale
+function updateSpeed() {
+  const norm = +speedSlider.property('value');
+  speed = MIN_SPEED * Math.pow(MAX_SPEED / MIN_SPEED, norm);
+  speedDisplay.text(speed.toFixed(2) + '×');
+}
+
+// Initialize display
+updateSpeed();
+
+// Update on slider input
+speedSlider.on('input', updateSpeed);
 
 // Scales & SVG
 const svg = d3.select("svg")
@@ -212,10 +234,9 @@ tickContainer.selectAll('div.tick')
   // Reset speed to default (1x)
   const resetSpeedBtn = d3.select('#resetSpeedBtn');
   resetSpeedBtn.on('click', () => {
-    speedSlider.property('value', 1);
-    speedDisplay.text('1×');
-    speed = 1;
-  });
+  speedSlider.property('value', DEFAULT_NORM);
+  updateSpeed();
+});
 
     // Start
   let frameIndex = 0;
