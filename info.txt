@@ -1,8 +1,2 @@
-code généré avec chatgpt  mini high
-
-https://chatgpt.com/c/6834a13e-f798-800a-9847-33204e1460d7
-
-Amélioraton du code 16. 
-
--J'ai corrigé tic pour 2024 dans progress bar
--j'ai corrigé position date pour ne pas que ça overlap avec bar chart
+https://chatgpt.com/c/68372ee1-e8d4-800a-b174-01efc5ff3f13
+https://chatgpt.com/c/68373b81-5e80-800a-8d0c-31c0cedef337?model=o4-mini-high
