@@ -12,6 +12,12 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
     const langs = Array.from(new Set(data.map(d => d.lang))).sort();
     const names = Array.from(new Set(data.map(d => d.name))).sort();
 
+    // Define color scale for programming languages
+    const color = d3.scaleOrdinal()
+        .domain(langs)
+        .range(d3.schemeCategory10);
+
+
     const langSelect = d3.select("#lang-select");
     langs.forEach(lang => {
         langSelect.append("option").attr("value", lang).text(lang);
@@ -112,7 +118,9 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
             .attr("y", d => y(valueMean(d)))
             .attr("width", x.bandwidth())
             .attr("height", d => height - y(valueMean(d)))
-            .attr("fill-opacity", 0.5);
+            .attr("fill", d => color(d.lang))
+            .attr("fill-opacity", 0.6);
+            
 
         svg.selectAll(".error-bar")
             .data(data)
