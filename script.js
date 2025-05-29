@@ -87,7 +87,7 @@ Promise.all([
         .append("option")
         .attr("value", d => d.value)
         .text(d => d.text);
-    sortSelect.property("value", "alpha");
+    sortSelect.property("value", "cpu");
     sortSelect.on("change", update);
 
     // Initial update
