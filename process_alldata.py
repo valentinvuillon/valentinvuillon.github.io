@@ -3,12 +3,20 @@ import pandas as pd
 import os
 
 def main():
-    
     input_file = 'alldata.csv'
+    mapping_file = 'mapping.csv'
     output_file = 'alldata_processed.csv'
 
-    # Read the data
+    # Read the raw data
     df = pd.read_csv(input_file)
+
+    # Read mapping and rename programming languages
+    try:
+        mapping_df = pd.read_csv(mapping_file)
+        mapping_dict = dict(zip(mapping_df['old_name'], mapping_df['new_name']))
+        df['lang'] = df['lang'].map(mapping_dict).fillna(df['lang'])
+    except FileNotFoundError:
+        print(f"Warning: '{mapping_file}' not found. 'lang' column will not be renamed.")
 
     # Filter out rows with negative status
     if 'status' in df.columns:
@@ -38,7 +46,7 @@ def main():
     print(f"Processed dataset saved to {output_file}")
 
 if __name__ == '__main__':
-    # making sure the code is run within the directory where the code is
+    # Ensure working directory is the script directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 

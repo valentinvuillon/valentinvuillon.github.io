@@ -3,21 +3,10 @@ const margin = { top: 20, right: 20, bottom: 50, left: 100 };
 const width = 520 - margin.left - margin.right;
 const height = 350 - margin.top - margin.bottom;
 
-Promise.all([
-    d3.csv("alldata_processed.csv", d3.autoType),
-    d3.csv("mapping.csv")
-]).then(([data, mapping]) => {
-    // Create mapping from old names to new display names
-    const nameMap = {};
-    mapping.forEach(d => {
-        nameMap[d.old_name] = d.new_name;
-    });
-
-    // Process data and add displayLang property
+d3.csv("alldata_processed.csv", d3.autoType).then(data => {
     data.forEach(d => {
         d.mem_GB_mean = d['mem(KB)_mean'] / 1024 / 1024;
         d.mem_GB_std = d['mem(KB)_std'] / 1024 / 1024;
-        d.displayLang = nameMap[d.lang] || d.lang;
     });
 
     const langs = Array.from(new Set(data.map(d => d.lang))).sort();
@@ -27,27 +16,22 @@ Promise.all([
         .domain(langs)
         .range(d3.schemeCategory10);
 
-    // Populate language selector with display names
     const langSelect = d3.select("#lang-select");
     langs.forEach(lang => {
-        langSelect.append("option")
-            .attr("value", lang)
-            .text(nameMap[lang] || lang);
+        langSelect.append("option").attr("value", lang).text(lang);
     });
-    const defaultLangs = ["clang","gcc","go","gpp","java","julia","lua","perl","php","python3","ruby","rust","swift"];
+    const defaultLangs = ["C (clang)","C (gcc)","Go","C++ (gpp)","Java","Julia","Lua","Perl","PHP","Python 3","Ruby","Rust","Swift"];
     defaultLangs.forEach(lang => {
         langSelect.selectAll("option")
             .filter(function() { return this.value === lang; })
             .property("selected", true);
     });
 
-    // Populate problem name selector
     const nameSelect = d3.select("#name-select");
     names.forEach(name => {
         nameSelect.append("option").attr("value", name).text(name);
     });
 
-    // Populate problem size selector
     const nSelect = d3.select("#n-select");
     function populateNS(selectedName) {
         const ns = Array.from(new Set(
@@ -65,7 +49,6 @@ Promise.all([
     populateNS(defaultProblem);
     nSelect.property("value", defaultSize);
 
-    // Event listeners
     langSelect.on("change", update);
     nameSelect.on("change", function() {
         populateNS(this.value);
@@ -73,7 +56,6 @@ Promise.all([
     });
     nSelect.on("change", update);
 
-    // Sort selector
     const sortSelect = d3.select("#sort-select");
     const sortOptions = [
         {value: "alpha", text: "Alphabetical"},
@@ -90,7 +72,6 @@ Promise.all([
     sortSelect.property("value", "cpu");
     sortSelect.on("change", update);
 
-    // Initial update
     update();
 
     function update() {
@@ -145,7 +126,7 @@ Promise.all([
 
         svg.append("g")
             .attr("transform", `translate(0, ${height})`)
-            .call(d3.axisBottom(x).tickFormat(d => nameMap[d] || d))
+            .call(d3.axisBottom(x))
             .selectAll("text")
             .attr("transform", "rotate(-45)")
             .style("text-anchor", "end");
@@ -172,7 +153,7 @@ Promise.all([
             .attr("y", d => y(valueMean(d)))
             .attr("height", d => height - y(valueMean(d)));
 
-        // Error bars and caps (unchanged)...
+        // Error bars
         svg.selectAll(".error-bar")
             .data(data)
             .enter()
@@ -189,6 +170,7 @@ Promise.all([
             .attr("y2", d => y(valueMean(d) + valueStd(d)));
 
         const capWidth = 5;
+        // Top caps
         svg.selectAll(".error-cap-top")
             .data(data)
             .enter()
@@ -204,6 +186,7 @@ Promise.all([
             .attr("y1", d => y(valueMean(d) + valueStd(d)))
             .attr("y2", d => y(valueMean(d) + valueStd(d)));
 
+        // Bottom caps
         svg.selectAll(".error-cap-bottom")
             .data(data)
             .enter()
