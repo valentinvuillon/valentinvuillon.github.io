@@ -1,26 +1,38 @@
 // script.js
-const margin = { top: 20, right: 20, bottom: 50, left: 100 };  // Increased left margin for y-axis labels
+const margin = { top: 20, right: 20, bottom: 50, left: 100 };
 const width = 520 - margin.left - margin.right;
 const height = 350 - margin.top - margin.bottom;
 
-d3.csv("alldata_processed.csv", d3.autoType).then(data => {
+Promise.all([
+    d3.csv("alldata_processed.csv", d3.autoType),
+    d3.csv("mapping.csv")
+]).then(([data, mapping]) => {
+    // Create mapping from old names to new display names
+    const nameMap = {};
+    mapping.forEach(d => {
+        nameMap[d.old_name] = d.new_name;
+    });
+
+    // Process data and add displayLang property
     data.forEach(d => {
         d.mem_GB_mean = d['mem(KB)_mean'] / 1024 / 1024;
         d.mem_GB_std = d['mem(KB)_std'] / 1024 / 1024;
+        d.displayLang = nameMap[d.lang] || d.lang;
     });
 
     const langs = Array.from(new Set(data.map(d => d.lang))).sort();
     const names = Array.from(new Set(data.map(d => d.name))).sort();
 
-    // Define color scale for programming languages
     const color = d3.scaleOrdinal()
         .domain(langs)
         .range(d3.schemeCategory10);
 
-
+    // Populate language selector with display names
     const langSelect = d3.select("#lang-select");
     langs.forEach(lang => {
-        langSelect.append("option").attr("value", lang).text(lang);
+        langSelect.append("option")
+            .attr("value", lang)
+            .text(nameMap[lang] || lang);
     });
     const defaultLangs = ["clang","gcc","go","gpp","java","julia","lua","perl","php","python3","ruby","rust","swift"];
     defaultLangs.forEach(lang => {
@@ -29,11 +41,13 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
             .property("selected", true);
     });
 
+    // Populate problem name selector
     const nameSelect = d3.select("#name-select");
     names.forEach(name => {
         nameSelect.append("option").attr("value", name).text(name);
     });
 
+    // Populate problem size selector
     const nSelect = d3.select("#n-select");
     function populateNS(selectedName) {
         const ns = Array.from(new Set(
@@ -51,6 +65,7 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
     populateNS(defaultProblem);
     nSelect.property("value", defaultSize);
 
+    // Event listeners
     langSelect.on("change", update);
     nameSelect.on("change", function() {
         populateNS(this.value);
@@ -58,6 +73,24 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
     });
     nSelect.on("change", update);
 
+    // Sort selector
+    const sortSelect = d3.select("#sort-select");
+    const sortOptions = [
+        {value: "alpha", text: "Alphabetical"},
+        {value: "size", text: "Increasing Program Size"},
+        {value: "cpu", text: "Increasing CPU Time"},
+        {value: "mem", text: "Increasing Memory Usage"}
+    ];
+    sortSelect.selectAll("option")
+        .data(sortOptions)
+        .enter()
+        .append("option")
+        .attr("value", d => d.value)
+        .text(d => d.text);
+    sortSelect.property("value", "alpha");
+    sortSelect.on("change", update);
+
+    // Initial update
     update();
 
     function update() {
@@ -70,6 +103,17 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
             d.n === selectedN &&
             selectedLangs.includes(d.lang)
         );
+
+        const sortBy = sortSelect.property("value");
+        if (sortBy === "alpha") {
+            filtered.sort((a, b) => d3.ascending(a.lang, b.lang));
+        } else if (sortBy === "size") {
+            filtered.sort((a, b) => d3.ascending(a["size(B)_mean"], b["size(B)_mean"]));
+        } else if (sortBy === "cpu") {
+            filtered.sort((a, b) => d3.ascending(a["cpu-time(s)_mean"], b["cpu-time(s)_mean"]));
+        } else if (sortBy === "mem") {
+            filtered.sort((a, b) => d3.ascending(a.mem_GB_mean, b.mem_GB_mean));
+        }
 
         drawChart(filtered, '#chart-size',
             d => d['size(B)_mean'], d => d['size(B)_std'], 'Size (Bytes)');
@@ -101,7 +145,7 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
 
         svg.append("g")
             .attr("transform", `translate(0, ${height})`)
-            .call(d3.axisBottom(x))
+            .call(d3.axisBottom(x).tickFormat(d => nameMap[d] || d))
             .selectAll("text")
             .attr("transform", "rotate(-45)")
             .style("text-anchor", "end");
@@ -109,19 +153,26 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
         svg.append("g")
             .call(d3.axisLeft(y));
 
+        const t = svg.transition().duration(200);
+
+        // Bars
         svg.selectAll(".bar")
             .data(data)
             .enter()
             .append("rect")
             .attr("class", "bar")
             .attr("x", d => x(d.lang))
-            .attr("y", d => y(valueMean(d)))
             .attr("width", x.bandwidth())
-            .attr("height", d => height - y(valueMean(d)))
+            .attr("y", y(0))
+            .attr("height", 0)
             .attr("fill", d => color(d.lang))
-            .attr("fill-opacity", 0.6);
-            
+            .attr("fill-opacity", 0.6)
+          .transition(t)
+            .delay((d,i) => i * 5)
+            .attr("y", d => y(valueMean(d)))
+            .attr("height", d => height - y(valueMean(d)));
 
+        // Error bars and caps (unchanged)...
         svg.selectAll(".error-bar")
             .data(data)
             .enter()
@@ -129,9 +180,13 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
             .attr("class", "error-bar")
             .attr("x1", d => x(d.lang) + x.bandwidth() / 2)
             .attr("x2", d => x(d.lang) + x.bandwidth() / 2)
+            .attr("y1", y(0))
+            .attr("y2", y(0))
+            .attr("stroke", "black")
+          .transition(t)
+            .delay((d,i) => i * 5)
             .attr("y1", d => y(valueMean(d) - valueStd(d)))
-            .attr("y2", d => y(valueMean(d) + valueStd(d)))
-            .attr("stroke", "black");
+            .attr("y2", d => y(valueMean(d) + valueStd(d)));
 
         const capWidth = 5;
         svg.selectAll(".error-cap-top")
@@ -141,9 +196,13 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
             .attr("class", "error-cap-top")
             .attr("x1", d => x(d.lang) + x.bandwidth() / 2 - capWidth)
             .attr("x2", d => x(d.lang) + x.bandwidth() / 2 + capWidth)
+            .attr("y1", y(0))
+            .attr("y2", y(0))
+            .attr("stroke", "black")
+          .transition(t)
+            .delay((d,i) => i * 5)
             .attr("y1", d => y(valueMean(d) + valueStd(d)))
-            .attr("y2", d => y(valueMean(d) + valueStd(d)))
-            .attr("stroke", "black");
+            .attr("y2", d => y(valueMean(d) + valueStd(d)));
 
         svg.selectAll(".error-cap-bottom")
             .data(data)
@@ -152,9 +211,13 @@ d3.csv("alldata_processed.csv", d3.autoType).then(data => {
             .attr("class", "error-cap-bottom")
             .attr("x1", d => x(d.lang) + x.bandwidth() / 2 - capWidth)
             .attr("x2", d => x(d.lang) + x.bandwidth() / 2 + capWidth)
+            .attr("y1", y(0))
+            .attr("y2", y(0))
+            .attr("stroke", "black")
+          .transition(t)
+            .delay((d,i) => i * 5)
             .attr("y1", d => y(valueMean(d) - valueStd(d)))
-            .attr("y2", d => y(valueMean(d) - valueStd(d)))
-            .attr("stroke", "black");
+            .attr("y2", d => y(valueMean(d) - valueStd(d)));
 
         svg.append("text")
             .attr("transform", "rotate(-90)")
